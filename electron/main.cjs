@@ -30,7 +30,9 @@ async function loadApp(win, query = '') {
 function startVirtualCam(win) {
   stopVirtualCam();
   const v4l2 = process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam');
-  if (!v4l2 || !win || win.isDestroyed()) return;
+  if (!v4l2) return;
+  if (!win || win.isDestroyed()) win = ensureOutputWindow(false);
+  if (!win || win.isDestroyed()) return;
   const fps = Math.max(1, Number(process.env.VCAM_FPS || argVal('vcam-fps') || 30));
   const sizeArg = process.env.VCAM_SIZE || argVal('vcam-size');
   const vf = sizeArg ? `scale=${sizeArg},format=yuv420p` : 'format=yuv420p';
@@ -70,10 +72,13 @@ function ensureOutputWindow(show = false) {
   });
   outputWin.webContents.setBackgroundThrottling(false);
   try { outputWin.webContents.setFrameRate(30); } catch {}
+  outputWin.on('close', (e) => {
+    if (!quitting) { e.preventDefault(); try { outputWin.setSkipTaskbar(true); } catch {} outputWin.hide(); }
+  });
   outputWin.on('closed', () => { outputWin = null; });
   loadApp(outputWin, '?output=1').then(() => {
     if (wantShow) outputWin.show();
-    // virtual cam captures output window; keep paint active even when hidden
+    // virtual cam captures output window; keep engine alive/painted even when hidden
     if (!wantShow) { try { outputWin.webContents.invalidate(); } catch {} }
     if (process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam')) startVirtualCam(outputWin);
   });
