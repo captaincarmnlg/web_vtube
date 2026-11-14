@@ -35,7 +35,7 @@ vcam-setup:
 	@ls -l $(VCAM_DEV) 2>/dev/null || echo "Device $(VCAM_DEV) not found (install/load v4l2loopback)."
 
 start-vcam: vcam-setup
-	V4L2_DEVICE=$(VCAM_DEV) VCAM_FPS=$(VCAM_FPS) npm start
+	V4L2_DEVICE=$(VCAM_DEV) VCAM_FPS=$(VCAM_FPS) ELECTRON_OZONE_PLATFORM_HINT=$${ELECTRON_OZONE_PLATFORM_HINT:-auto} npm start
 
 restart:
 	@pkill -f 'python3 -m http.server 5173' || true

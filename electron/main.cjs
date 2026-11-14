@@ -2,6 +2,9 @@ const { app, BrowserWindow, session, Tray, Menu, nativeImage } = require('electr
 const path = require('path');
 const { spawn } = require('child_process');
 
+// Reduce noisy Wayland presentation-feedback warnings on some compositors.
+app.commandLine.appendSwitch('disable-features', 'WaylandWpColorManagerV1');
+
 const headless = process.argv.includes('--headless');
 const showOutput = process.argv.includes('--show-output');
 const devUrl = process.env.WEB_VTUBE_URL;

@@ -28,7 +28,7 @@ Minimal VRM VTuber app (three.js / `@pixiv/three-vrm`) for browser and Electron.
 ## Virtual camera / capture
 
 - **Browser:** use OBS Browser Source on the app (clean view), window/display capture, or the virtual-cam popup window.
-- **Electron/Linux v4l2:** set `V4L2_DEVICE=/dev/videoN` (or pass `--v4l2=/dev/videoN`) to output video to a virtual camera device via `ffmpeg` + `v4l2loopback`. Vcam captures the hidden output window (model + background), so it works without UI/output preview shown. Optional: `VCAM_FPS=30`, `VCAM_SIZE=1280x720`. Spout/Syphon not implemented. Pass `--show-output` to preview the output window.
+- **Electron/Linux v4l2:** set `V4L2_DEVICE=/dev/videoN` (or pass `--v4l2=/dev/videoN`) to output video to a virtual camera device via `ffmpeg` + `v4l2loopback`. Vcam captures the hidden output window (model + background), so it works without UI/output preview shown. Optional: `VCAM_FPS=30`, `VCAM_SIZE=1280x720`. Spout/Syphon not implemented. Pass `--show-output` to preview the output window. On Wayland, noisy presentation-feedback warnings may appear; try `ELECTRON_OZONE_PLATFORM_HINT=x11 make start-vcam` if needed.
 
 ## Distribution / updates (server/local)
 
