@@ -1,0 +1,7 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - text: VRM
+    - button "VRM" [ref=e4]
+  - button "Start face tracking" [ref=e5]
+  - button "Clean view" [ref=e6]
+  - generic [ref=e7]: Load a .vrm to begin.

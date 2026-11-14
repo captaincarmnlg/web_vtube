@@ -1,0 +1,5 @@
+[     231ms] [WARNING] [.WebGL-0x380400102200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://mirmir.home:5173/:1
+[     236ms] [WARNING] [.WebGL-0x380400102200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://mirmir.home:5173/:1
+[     240ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://mirmir.home:5173/favicon.ico:1
+[     250ms] [WARNING] [.WebGL-0x380400102200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels @ http://mirmir.home:5173/:1
+[     279ms] [WARNING] [.WebGL-0x380400102200]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat) @ http://mirmir.home:5173/:1

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>web_vtube (offline)</title>
+  <link rel="stylesheet" href="./src/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/",
+      "@pixiv/three-vrm": "./vendor/three-vrm/three-vrm.module.min.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="ui">
+    <label>VRM <input id="vrmFile" type="file" accept=".vrm" /></label>
+    <button id="trackingBtn" type="button">Start tracking</button>
+    <button id="vcamBtn" type="button">Browser virtual cam</button>
+    <button id="calibrateBtn" type="button">Calibrate</button>
+    <button id="cleanBtn" type="button">Clean view</button>
+    <button id="exitClean" type="button">Done</button>
+    <span id="status">Load a .vrm to begin.</span>
+    <label>GPU
+      <select id="gpuMode">
+        <option value="default">Default</option>
+        <option value="high-performance">High perf</option>
+        <option value="low-power">Low power</option>
+      </select>
+    </label>
+    <label><input id="antialias" type="checkbox" checked /> AA</label>
+  </div>
+  <div id="perf"></div>
+  <canvas id="c"></canvas>
+  <video id="cam" autoplay playsinline muted></video>
+  <script type="module">window.WEB_VTUBE_VENDOR='local';</script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
