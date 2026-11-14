@@ -26,8 +26,14 @@ const bgType = document.getElementById('bgType');
 const bgColor = document.getElementById('bgColor');
 const bgImage = document.getElementById('bgImage');
 
-const isOutputMode = new URLSearchParams(location.search).has('output');
+const params = new URLSearchParams(location.search);
+const isOutputMode = params.has('output');
+const isControlMode = params.has('control');
+const isElectron = /electron/i.test(navigator.userAgent);
 if (isOutputMode) document.body.classList.add('output-mode', 'clean');
+// In Electron tray app, control window drives UI; hidden output window is the render/vcam engine.
+const isEngine = isOutputMode || (!isControlMode && isElectron && !params.has('ui-only'));
+const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('web_vtube') : null;
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !!settings.antialias, alpha: true, powerPreference: settings.powerPreference || 'default' });
 renderer.setPixelRatio(settings.pixelRatio > 0 ? settings.pixelRatio : devicePixelRatio);
@@ -87,6 +93,16 @@ addEventListener('storage', (e) => {
     if (bgColor) bgColor.value = settings.outputBgColor || '#00b140';
     applyBackground();
   }
+});
+
+bc?.addEventListener('message', async (ev) => {
+  const msg = ev.data || {};
+  if (msg.type === 'vrm-saved' && isEngine) { try { await tryLoadSavedVrm(); } catch {} }
+  if (msg.type === 'toggle-tracking' && isEngine) { toggleTracking(); }
+  if (msg.type === 'calibrate' && isEngine) { handleCalibrateClick(true); bc.postMessage({ type: 'calib-state', text: status.textContent, active: calib.active, stage: calib.stage, samples: calib.samples.length }); }
+  if (msg.type === 'calib-sample' && isEngine) { handleCanvasCalibClick(true); bc.postMessage({ type: 'calib-state', text: status.textContent, active: calib.active, stage: calib.stage, samples: calib.samples.length }); }
+  if (msg.type === 'tracking-state' && !isEngine) { status.textContent = msg.text || status.textContent; if (typeof msg.tracking === 'boolean') { tracking = msg.tracking; if (trackingBtn) trackingBtn.textContent = tracking ? 'Stop tracking' : 'Start tracking'; } }
+  if (msg.type === 'calib-state' && !isEngine) { status.textContent = msg.text || status.textContent; }
 });
 
 let vcamWin = null;
@@ -171,11 +187,12 @@ async function loadVrmFile(file) {
   URL.revokeObjectURL(url);
 }
 
-fileInput.addEventListener('change', async (e) => {
+fileInput?.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   await loadVrmFile(file);
   await saveVrmToDb(file);
+  bc?.postMessage({ type: 'vrm-saved' });
 });
 
 async function tryLoadSavedVrm() {
@@ -233,7 +250,19 @@ async function startTracking() {
   status.textContent = 'Tracking on (face' + (poseLandmarker ? '+pose' : '') + (handLandmarker ? '+hands' : '') + ').';
 }
 
-trackingBtn.addEventListener('click', () => startTracking().catch(err => { console.error(err); status.textContent = 'Tracking error: ' + err.message; }));
+async function toggleTracking() {
+  try {
+    await startTracking();
+  } catch (err) {
+    console.error(err);
+    status.textContent = 'Tracking error: ' + err.message;
+  }
+  bc?.postMessage({ type: 'tracking-state', tracking, text: status.textContent });
+}
+trackingBtn?.addEventListener('click', () => {
+  if (isElectron && !isOutputMode && bc) { bc.postMessage({ type: 'toggle-tracking' }); status.textContent = tracking ? 'Stopping tracking...' : 'Starting tracking in output engine...'; return; }
+  toggleTracking();
+});
 
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -509,14 +538,14 @@ function captureCalibSample() {
   updateCalibGuide();
 }
 
-calibrateBtn?.addEventListener('click', () => {
+function handleCalibrateClick(fromRemote = false) {
+  if (isElectron && !isOutputMode && bc && !fromRemote) { bc.postMessage({ type: 'calibrate' }); status.textContent = 'Calibration command sent to output engine.'; return; }
   if (!calib.active) {
     calib = { active: true, stage: 0, samples: [], baseline: calib.baseline || null, headLock: null, headRange: calib.headRange || null };
     status.textContent = 'Calib 1/3: sample neutral face poses.';
     updateCalibGuide();
     return;
   }
-  const need = (calibStages[calib.stage] || {}).need || 3;
   if (calib.samples.length < 1) captureCalibSample();
   if (calib.stage < 2) {
     calib.stage += 1;
@@ -529,14 +558,16 @@ calibrateBtn?.addEventListener('click', () => {
   calib.active = false;
   status.textContent = `Calibration complete (${calib.baseline ? 'face' : 'no face'}${calib.headRange ? ', head' : ''}${calib.poseSamples ? ', pose' : ''}).`;
   updateCalibGuide();
-});
-
-canvas.addEventListener('click', () => {
+}
+function handleCanvasCalibClick(fromRemote = false) {
   if (!calib.active) return;
+  if (isElectron && !isOutputMode && bc && !fromRemote) { bc.postMessage({ type: 'calib-sample' }); return; }
   captureCalibSample();
   const s = calibStages[calib.stage] || calibStages[0];
   status.textContent = `${s.title}: sampled ${calib.samples.length}/${s.need || 3}.`;
-});
+}
+calibrateBtn?.addEventListener('click', () => handleCalibrateClick(false));
+canvas.addEventListener('click', () => handleCanvasCalibClick(false));
 
 renderer.setAnimationLoop(() => {
   const t0 = performance.now();
