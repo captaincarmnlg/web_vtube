@@ -40,25 +40,41 @@ function startVirtualCam(win) {
   const fps = Math.max(1, Number(process.env.VCAM_FPS || argVal('vcam-fps') || 30));
   const sizeArg = process.env.VCAM_SIZE || argVal('vcam-size');
   const vf = sizeArg ? `scale=${sizeArg},format=yuv420p` : 'format=yuv420p';
-  const ff = spawn('ffmpeg', [
-    '-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'png', '-r', String(fps), '-i', '-',
-    '-vf', vf, '-pix_fmt', 'yuv420p', '-f', 'v4l2', v4l2
-  ], { stdio: ['pipe', 'ignore', 'inherit'] });
+  const usePaint = !!win.webContents.isOffscreen && win.webContents.isOffscreen();
+  const ffArgs = usePaint
+    ? ['-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'bgra', '-s', '960x720', '-r', String(fps), '-i', '-', '-vf', vf, '-pix_fmt', 'yuv420p', '-f', 'v4l2', v4l2]
+    : ['-loglevel', 'error', '-f', 'image2pipe', '-vcodec', 'png', '-r', String(fps), '-i', '-', '-vf', vf, '-pix_fmt', 'yuv420p', '-f', 'v4l2', v4l2];
+  const ff = spawn('ffmpeg', ffArgs, { stdio: ['pipe', 'ignore', 'inherit'] });
   ff.on('error', (e) => console.error('ffmpeg virtual cam error:', e.message));
   ff.stdin.on('error', () => {});
-  let busy = false;
-  const timer = setInterval(async () => {
-    if (busy || win.isDestroyed()) return;
-    busy = true;
-    try {
-      if (!win.isVisible()) { try { win.webContents.invalidate(); } catch {} }
-      const img = await win.webContents.capturePage();
-      if (!ff.stdin.destroyed) ff.stdin.write(img.toPNG());
-    } catch (e) { console.error('virtual cam capture error:', e.message); }
-    busy = false;
-  }, 1000 / fps);
-  vcamStop = () => { clearInterval(timer); try { ff.stdin.end(); } catch {} try { ff.kill(); } catch {} vcamStop = null; };
-  console.log(`Virtual camera output -> ${v4l2} @ ${fps}fps`);
+  let busy = false, painted = false;
+
+  if (usePaint) {
+    const onPaint = (_e, _dirty, image) => {
+      painted = true;
+      if (ff.stdin.destroyed) return;
+      try { ff.stdin.write(image.toBitmap()); } catch {}
+    };
+    win.webContents.on('paint', onPaint);
+    const timer = setInterval(() => {
+      if (win.isDestroyed()) return;
+      try { win.webContents.invalidate(); } catch {}
+    }, 1000 / fps);
+    vcamStop = () => { clearInterval(timer); try { win.webContents.off('paint', onPaint); } catch {} try { ff.stdin.end(); } catch {} try { ff.kill(); } catch {} vcamStop = null; };
+  } else {
+    const timer = setInterval(async () => {
+      if (busy || win.isDestroyed()) return;
+      busy = true;
+      try {
+        if (!win.isVisible()) { try { win.webContents.invalidate(); } catch {} }
+        const img = await win.webContents.capturePage();
+        if (!ff.stdin.destroyed) ff.stdin.write(img.toPNG());
+      } catch (e) { console.error('virtual cam capture error:', e.message); }
+      busy = false;
+    }, 1000 / fps);
+    vcamStop = () => { clearInterval(timer); try { ff.stdin.end(); } catch {} try { ff.kill(); } catch {} vcamStop = null; };
+  }
+  console.log(`Virtual camera output -> ${v4l2} @ ${fps}fps${usePaint ? ' (offscreen paint)' : ''}`);
 }
 function stopVirtualCam() { if (vcamStop) vcamStop(); }
 
@@ -68,23 +84,25 @@ function ensureOutputWindow(show = false) {
     return outputWin;
   }
   const wantShow = show || showOutput;
+  const needsVcam = !!(process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam'));
+  const useOffscreen = needsVcam && !wantShow; // no OS window; render via paint events for vcam
   outputWin = new BrowserWindow({
     width: 960, height: 720,
-    show: !!wantShow, frame: wantShow, transparent: false, skipTaskbar: !wantShow,
+    show: useOffscreen ? false : !!wantShow, frame: wantShow, transparent: false, skipTaskbar: !wantShow,
     autoHideMenuBar: true, paintWhenInitiallyHidden: true,
-    webPreferences: { backgroundThrottling: false, offscreen: false }
+    webPreferences: { backgroundThrottling: false, offscreen: useOffscreen }
   });
   outputWin.webContents.setBackgroundThrottling(false);
-  try { outputWin.webContents.setFrameRate(30); } catch {}
+  try { outputWin.webContents.setFrameRate(Math.max(1, Number(process.env.VCAM_FPS || argVal('vcam-fps') || 30))); } catch {}
   outputWin.on('close', (e) => {
-    if (!quitting) { e.preventDefault(); try { outputWin.setSkipTaskbar(true); } catch {} outputWin.hide(); }
+    if (!quitting) { e.preventDefault(); if (!useOffscreen) { try { outputWin.setSkipTaskbar(true); } catch {} outputWin.hide(); } }
   });
   outputWin.on('closed', () => { outputWin = null; });
   loadApp(outputWin, '?output=1').then(() => {
-    if (wantShow) outputWin.show();
-    // virtual cam captures output window; keep engine alive/painted even when hidden
-    if (!wantShow) { try { outputWin.webContents.invalidate(); } catch {} }
-    if (process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam')) startVirtualCam(outputWin);
+    if (wantShow && !useOffscreen) outputWin.show();
+    if (useOffscreen) { try { outputWin.webContents.invalidate(); } catch {} }
+    else if (!wantShow) { try { outputWin.webContents.invalidate(); } catch {} }
+    if (needsVcam) startVirtualCam(outputWin);
   });
   return outputWin;
 }
@@ -114,8 +132,13 @@ function createTray() {
     { label: 'Show Controls', click: () => createControlWindow(true) },
     { label: 'Hide Controls', click: () => { if (controlWin && !controlWin.isDestroyed()) controlWin.hide(); } },
     { type: 'separator' },
-    { label: 'Show Output Preview', click: () => ensureOutputWindow(true) },
-    { label: 'Hide Output Preview', click: () => { if (outputWin && !outputWin.isDestroyed()) { try { outputWin.setSkipTaskbar(true); } catch {} outputWin.hide(); } } },
+    { label: 'Show Output Preview', click: () => {
+      // offscreen engine can't be shown; recreate as visible window
+      const wasOff = outputWin && !outputWin.isDestroyed() && outputWin.webContents.isOffscreen && outputWin.webContents.isOffscreen();
+      if (wasOff) { quitting = true; stopVirtualCam(); outputWin.destroy(); outputWin = null; quitting = false; ensureOutputWindow(true); }
+      else ensureOutputWindow(true);
+    } },
+    { label: 'Hide Output Preview', click: () => { if (outputWin && !outputWin.isDestroyed()) { if (outputWin.webContents.isOffscreen && outputWin.webContents.isOffscreen()) return; try { outputWin.setSkipTaskbar(true); } catch {} outputWin.hide(); } } },
     { type: 'separator' },
     { label: 'Start Virtual Cam', click: () => { const w = ensureOutputWindow(false); if (!w.webContents.isLoading()) startVirtualCam(w); else w.webContents.once('did-finish-load', () => startVirtualCam(w)); } },
     { label: 'Stop Virtual Cam', click: () => stopVirtualCam() },
