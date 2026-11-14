@@ -569,7 +569,8 @@ function handleCanvasCalibClick(fromRemote = false) {
 calibrateBtn?.addEventListener('click', () => handleCalibrateClick(false));
 canvas.addEventListener('click', () => handleCanvasCalibClick(false));
 
-renderer.setAnimationLoop(() => {
+let lastRaf = performance.now();
+function tick() {
   const t0 = performance.now();
   const dt = clock.getDelta();
   applyTracking();
@@ -584,4 +585,10 @@ renderer.setAnimationLoop(() => {
     perf.last = t0;
     if (perfEl) perfEl.textContent = `FPS: ${perf.fps}\nFrame: ${perf.ms.toFixed(1)} ms\nDraw: ${renderer.info.render.calls}`;
   }
-});
+}
+
+renderer.setAnimationLoop(() => { lastRaf = performance.now(); tick(); });
+// Fallback for hidden/offscreen engine windows where rAF may be throttled.
+setInterval(() => {
+  if (document.hidden || performance.now() - lastRaf > 250) tick();
+}, 1000 / 30);

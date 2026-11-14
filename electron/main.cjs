@@ -3,7 +3,11 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 // Reduce noisy Wayland presentation-feedback warnings on some compositors.
-app.commandLine.appendSwitch('disable-features', 'WaylandWpColorManagerV1');
+app.commandLine.appendSwitch('disable-features', 'WaylandWpColorManagerV1,CalculateNativeWinOcclusion');
+// Keep hidden engine/output window rendering & tracking active for vcam.
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
 
 const headless = process.argv.includes('--headless');
 const showOutput = process.argv.includes('--show-output');
