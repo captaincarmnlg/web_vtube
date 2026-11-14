@@ -6,10 +6,10 @@ Minimal VRM VTuber app (three.js / `@pixiv/three-vrm`) for browser and Electron.
 
 - **Browser (online):** `npm run serve` then open http://localhost:5173 (use `localhost`/HTTPS for webcam).
 - **Browser (offline):** `make vendor` then serve and open `index.offline.html`.
-- **Electron:** `npm install` then `npm start`.
+- **Electron:** `npm install` then `npm start` (tray app by default).
 - **Electron + Linux virtual cam:** `V4L2_DEVICE=/dev/videoN npm start` (works windowed or headless; pipes captured frames to v4l2loopback via `ffmpeg`).
-- **Electron tray mode:** `npx electron . --tray` (or `make start-tray`) creates a tray app with a separate output window (`?output=1`) showing only model + background for capture/vcam; control window can be hidden.
-- **Electron headless:** `V4L2_DEVICE=/dev/videoN VCAM_FPS=30 npm run start:headless`.
+- **Electron app:** `npm start` / `make start` runs as a tray program by default. Control UI window manages settings/tracking/calibration; a separate hidden output window (`?output=1`, model + background only) renders for virtual cam/capture without UI. Use tray menu to show/hide controls or output preview. Use `make start-vcam` to set up v4l2 and launch with virtual cam output.
+- **Electron headless:** `V4L2_DEVICE=/dev/videoN VCAM_FPS=30 npm run start:headless` (no visible control window; output still renders for vcam).
 - **Electron dev URL:** `WEB_VTUBE_URL=http://localhost:5173 npm start`.
 
 ## Features
@@ -28,7 +28,7 @@ Minimal VRM VTuber app (three.js / `@pixiv/three-vrm`) for browser and Electron.
 ## Virtual camera / capture
 
 - **Browser:** use OBS Browser Source on the app (clean view), window/display capture, or the virtual-cam popup window.
-- **Electron/Linux v4l2:** set `V4L2_DEVICE=/dev/videoN` (or pass `--v4l2=/dev/videoN`) to output video to a virtual camera device via `ffmpeg` + `v4l2loopback`. In `--tray` mode, vcam targets the separate output window (model + background). Optional: `VCAM_FPS=30`, `VCAM_SIZE=1280x720`. Spout/Syphon not implemented.
+- **Electron/Linux v4l2:** set `V4L2_DEVICE=/dev/videoN` (or pass `--v4l2=/dev/videoN`) to output video to a virtual camera device via `ffmpeg` + `v4l2loopback`. Vcam captures the hidden output window (model + background), so it works without UI/output preview shown. Optional: `VCAM_FPS=30`, `VCAM_SIZE=1280x720`. Spout/Syphon not implemented. Pass `--show-output` to preview the output window.
 
 ## Distribution / updates (server/local)
 

@@ -3,7 +3,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const headless = process.argv.includes('--headless');
-const trayMode = process.argv.includes('--tray') || process.env.WEB_VTUBE_TRAY === '1';
+const showOutput = process.argv.includes('--show-output');
 const devUrl = process.env.WEB_VTUBE_URL;
 let controlWin = null, outputWin = null, tray = null, vcamStop = null, quitting = false;
 
@@ -52,16 +52,17 @@ function startVirtualCam(win) {
 }
 function stopVirtualCam() { if (vcamStop) vcamStop(); }
 
-function ensureOutputWindow(show = true) {
+function ensureOutputWindow(show = false) {
   if (outputWin && !outputWin.isDestroyed()) { if (show) outputWin.show(); return outputWin; }
   outputWin = new BrowserWindow({
     width: 960, height: 720, show: false, autoHideMenuBar: true,
-    webPreferences: { backgroundThrottling: false }
+    webPreferences: { backgroundThrottling: false, offscreen: false }
   });
+  outputWin.webContents.setBackgroundThrottling(false);
   outputWin.on('closed', () => { outputWin = null; });
   loadApp(outputWin, '?output=1').then(() => {
-    if (show) outputWin.show();
-    // if vcam env/arg set, prefer output window
+    if (show || showOutput) outputWin.show();
+    // virtual cam captures hidden output canvas/window (no UI required)
     if (process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam')) startVirtualCam(outputWin);
   });
   return outputWin;
@@ -72,18 +73,15 @@ function createControlWindow(show = true) {
   controlWin = new BrowserWindow({
     width: 960, height: 720,
     show: show && !headless,
-    frame: !headless,
     autoHideMenuBar: true,
     webPreferences: { backgroundThrottling: false }
   });
+  controlWin.webContents.setBackgroundThrottling(false);
   controlWin.on('close', (e) => {
-    if (trayMode && !quitting) { e.preventDefault(); controlWin.hide(); }
+    if (!quitting) { e.preventDefault(); controlWin.hide(); }
   });
   controlWin.on('closed', () => { controlWin = null; });
-  loadApp(controlWin, '').then(() => {
-    // default vcam target: output window in tray mode if present, else control window
-    if (!trayMode && (process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam'))) startVirtualCam(controlWin);
-  });
+  loadApp(controlWin, '');
   return controlWin;
 }
 
@@ -91,32 +89,30 @@ function createTray() {
   if (tray) return;
   const icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAEklEQVQ4y2NgGAWjYBSMAggAAAgAAeKJfW4AAAAASUVORK5CYII=');
   tray = new Tray(icon);
-  const menu = () => Menu.buildFromTemplate([
+  const rebuild = () => Menu.buildFromTemplate([
     { label: 'Show Controls', click: () => createControlWindow(true) },
-    { label: 'Show Output Window', click: () => ensureOutputWindow(true) },
-    { label: 'Hide Output Window', click: () => { if (outputWin && !outputWin.isDestroyed()) outputWin.hide(); } },
-    { label: 'Start Virtual Cam (output)', click: () => { const w = ensureOutputWindow(true); w.webContents.once('did-finish-load', () => startVirtualCam(w)); if (!w.webContents.isLoading()) startVirtualCam(w); } },
+    { label: 'Hide Controls', click: () => { if (controlWin && !controlWin.isDestroyed()) controlWin.hide(); } },
+    { type: 'separator' },
+    { label: 'Show Output Preview', click: () => ensureOutputWindow(true) },
+    { label: 'Hide Output Preview', click: () => { if (outputWin && !outputWin.isDestroyed()) outputWin.hide(); } },
+    { type: 'separator' },
+    { label: 'Start Virtual Cam', click: () => { const w = ensureOutputWindow(false); if (!w.webContents.isLoading()) startVirtualCam(w); else w.webContents.once('did-finish-load', () => startVirtualCam(w)); } },
     { label: 'Stop Virtual Cam', click: () => stopVirtualCam() },
     { type: 'separator' },
     { label: 'Quit', click: () => { quitting = true; stopVirtualCam(); app.quit(); } },
   ]);
   tray.setToolTip('web_vtube');
-  tray.setContextMenu(menu());
+  tray.setContextMenu(rebuild());
   tray.on('click', () => createControlWindow(true));
 }
 
 app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, cb) => cb(true));
   session.defaultSession.setPermissionCheckHandler(() => true);
-  if (trayMode) {
-    createTray();
-    ensureOutputWindow(!headless); // output window for model/greenscreen + vcam
-    // keep control window hidden by default in tray mode unless not desired
-    if (!process.argv.includes('--no-control')) createControlWindow(false);
-  } else {
-    createControlWindow(true);
-  }
+  createTray();
+  ensureOutputWindow(false); // hidden output window for vcam (model+background), no UI
+  createControlWindow(!headless && !process.argv.includes('--no-control'));
 });
 
 app.on('before-quit', () => { quitting = true; stopVirtualCam(); });
-app.on('window-all-closed', () => { if (!trayMode) app.quit(); });
+app.on('window-all-closed', () => { /* tray app keeps running */ });

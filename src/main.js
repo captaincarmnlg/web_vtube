@@ -80,6 +80,15 @@ bgImage?.addEventListener('change', async (e) => {
   r.readAsDataURL(f);
 });
 
+addEventListener('storage', (e) => {
+  if (e.key === 'web_vtube_settings') {
+    Object.assign(settings, loadSettings());
+    if (bgType) bgType.value = settings.outputBgType || 'green';
+    if (bgColor) bgColor.value = settings.outputBgColor || '#00b140';
+    applyBackground();
+  }
+});
+
 let vcamWin = null;
 vcamBtn?.addEventListener('click', () => {
   const stream = canvas.captureStream(30);

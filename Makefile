@@ -1,4 +1,4 @@
-.PHONY: help serve start start-headless start-tray start-vcam vcam-setup restart clean vendor install uninstall update package
+.PHONY: help serve start start-headless start-vcam vcam-setup restart clean vendor install uninstall update package
 
 PREFIX ?= /opt/web_vtube
 VCAM_DEV ?= /dev/video10
@@ -7,11 +7,10 @@ VCAM_FPS ?= 30
 
 help:
 	@echo "serve          - run browser dev server (http://localhost:5173)"
-	@echo "start          - launch Electron app"
+	@echo "start          - launch Electron tray app (default)"
 	@echo "start-headless - launch Electron headless (V4L2_DEVICE=... for virtual cam)"
-	@echo "start-tray     - launch tray app with separate output window"
 	@echo "vcam-setup     - create v4l2loopback device ($(VCAM_DEV), needs sudo/modprobe)"
-	@echo "start-vcam     - setup virtual cam and launch Electron with V4L2_DEVICE=$(VCAM_DEV)"
+	@echo "start-vcam     - setup virtual cam and launch tray app with V4L2_DEVICE=$(VCAM_DEV)"
 	@echo "restart        - restart the web server"
 	@echo "vendor         - download CDN assets for offline mode"
 	@echo "install        - install app to $(PREFIX) (needs sudo)"
@@ -27,9 +26,6 @@ start:
 
 start-headless:
 	npm run start:headless
-
-start-tray:
-	npx electron . --tray
 
 vcam-setup:
 	@if [ ! -e $(VCAM_DEV) ]; then \
