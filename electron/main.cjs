@@ -45,6 +45,7 @@ function startVirtualCam(win) {
     if (busy || win.isDestroyed()) return;
     busy = true;
     try {
+      if (!win.isVisible()) { try { win.webContents.invalidate(); } catch {} }
       const img = await win.webContents.capturePage();
       if (!ff.stdin.destroyed) ff.stdin.write(img.toPNG());
     } catch (e) { console.error('virtual cam capture error:', e.message); }
@@ -56,22 +57,24 @@ function startVirtualCam(win) {
 function stopVirtualCam() { if (vcamStop) vcamStop(); }
 
 function ensureOutputWindow(show = false) {
-  if (outputWin && !outputWin.isDestroyed()) { if (show) { try { outputWin.setSkipTaskbar(false); outputWin.setFocusable(true); } catch {} outputWin.setOpacity(1); outputWin.setBounds({ x: 100, y: 100, width: 960, height: 720 }); outputWin.show(); } return outputWin; }
+  if (outputWin && !outputWin.isDestroyed()) {
+    if (show) { try { outputWin.setSkipTaskbar(false); } catch {} outputWin.show(); }
+    return outputWin;
+  }
   const wantShow = show || showOutput;
   outputWin = new BrowserWindow({
     width: 960, height: 720,
-    x: wantShow ? 100 : -32000, y: wantShow ? 100 : -32000,
-    show: true, frame: wantShow, transparent: false, skipTaskbar: !wantShow,
-    focusable: wantShow, autoHideMenuBar: true, paintWhenInitiallyHidden: true,
+    show: !!wantShow, frame: wantShow, transparent: false, skipTaskbar: !wantShow,
+    autoHideMenuBar: true, paintWhenInitiallyHidden: true,
     webPreferences: { backgroundThrottling: false, offscreen: false }
   });
   outputWin.webContents.setBackgroundThrottling(false);
   try { outputWin.webContents.setFrameRate(30); } catch {}
-  if (!wantShow) { try { outputWin.setOpacity(0); } catch {} }
   outputWin.on('closed', () => { outputWin = null; });
   loadApp(outputWin, '?output=1').then(() => {
-    if (wantShow) { outputWin.setOpacity(1); outputWin.show(); }
-    // virtual cam captures output canvas/window (kept rendering offscreen when hidden)
+    if (wantShow) outputWin.show();
+    // virtual cam captures output window; keep paint active even when hidden
+    if (!wantShow) { try { outputWin.webContents.invalidate(); } catch {} }
     if (process.env.V4L2_DEVICE || argVal('v4l2') || argVal('virtual-cam')) startVirtualCam(outputWin);
   });
   return outputWin;
@@ -103,7 +106,7 @@ function createTray() {
     { label: 'Hide Controls', click: () => { if (controlWin && !controlWin.isDestroyed()) controlWin.hide(); } },
     { type: 'separator' },
     { label: 'Show Output Preview', click: () => ensureOutputWindow(true) },
-    { label: 'Hide Output Preview', click: () => { if (outputWin && !outputWin.isDestroyed()) { outputWin.setOpacity(0); outputWin.setBounds({ x: -32000, y: -32000, width: 960, height: 720 }); outputWin.setSkipTaskbar(true); } } },
+    { label: 'Hide Output Preview', click: () => { if (outputWin && !outputWin.isDestroyed()) { try { outputWin.setSkipTaskbar(true); } catch {} outputWin.hide(); } } },
     { type: 'separator' },
     { label: 'Start Virtual Cam', click: () => { const w = ensureOutputWindow(false); if (!w.webContents.isLoading()) startVirtualCam(w); else w.webContents.once('did-finish-load', () => startVirtualCam(w)); } },
     { label: 'Stop Virtual Cam', click: () => stopVirtualCam() },
