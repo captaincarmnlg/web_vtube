@@ -7,7 +7,8 @@ Minimal VRM VTuber app (three.js / `@pixiv/three-vrm`) for browser and Electron.
 - **Browser (online):** `npm run serve` then open http://localhost:5173 (use `localhost`/HTTPS for webcam).
 - **Browser (offline):** `make vendor` then serve and open `index.offline.html`.
 - **Electron:** `npm install` then `npm start`.
-- **Electron headless:** `V4L2_DEVICE=/dev/videoN VCAM_FPS=30 npm run start:headless` (pipes PNG frames to v4l2loopback via `ffmpeg`).
+- **Electron + Linux virtual cam:** `V4L2_DEVICE=/dev/videoN npm start` (works windowed or headless; pipes captured frames to v4l2loopback via `ffmpeg`).
+- **Electron headless:** `V4L2_DEVICE=/dev/videoN VCAM_FPS=30 npm run start:headless`.
 - **Electron dev URL:** `WEB_VTUBE_URL=http://localhost:5173 npm start`.
 
 ## Features
@@ -24,7 +25,7 @@ Minimal VRM VTuber app (three.js / `@pixiv/three-vrm`) for browser and Electron.
 ## Virtual camera / capture
 
 - **Browser:** use OBS Browser Source on the app (clean view), window/display capture, or the virtual-cam popup window.
-- **Electron/Linux:** `V4L2_DEVICE=/dev/videoN` + `ffmpeg` + `v4l2loopback`. Spout/Syphon not implemented.
+- **Electron/Linux v4l2:** set `V4L2_DEVICE=/dev/videoN` (or pass `--v4l2=/dev/videoN`) to output the rendered window to a virtual camera device via `ffmpeg` + `v4l2loopback`. Optional: `VCAM_FPS=30`, `VCAM_SIZE=1280x720`. Spout/Syphon not implemented.
 
 ## Distribution / updates (server/local)
 
