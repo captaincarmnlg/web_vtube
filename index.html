@@ -32,6 +32,16 @@
       </select>
     </label>
     <label><input id="antialias" type="checkbox" checked /> AA</label>
+    <label>Output BG
+      <select id="bgType">
+        <option value="green">Green</option>
+        <option value="color">Color</option>
+        <option value="image">Image</option>
+        <option value="transparent">Transparent</option>
+      </select>
+    </label>
+    <input id="bgColor" type="color" value="#00b140" title="Background color" />
+    <input id="bgImage" type="file" accept="image/*" title="Background image" />
   </div>
   <div id="perf"></div>
   <div id="calibGuide" hidden>
@@ -39,6 +49,7 @@
     <div id="calibPose"></div>
     <div id="calibText"></div>
   </div>
+  <div id="bgLayer"></div>
   <canvas id="c"></canvas>
   <video id="cam" autoplay playsinline muted></video>
   <script type="module" src="./src/main.js"></script>

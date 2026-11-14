@@ -1,10 +1,11 @@
 html, body { margin: 0; height: 100%; background: #00b140; overflow: hidden; font: 14px sans-serif; }
-#c { width: 100%; height: 100%; display: block; }
+#bgLayer { position: fixed; inset: 0; z-index: 0; background: transparent center/cover no-repeat; pointer-events: none; }
+#c { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
 #ui { position: fixed; top: 8px; left: 8px; z-index: 2; background: rgba(0,0,0,.55); color: #fff; padding: 8px; border-radius: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 body.clean #ui { display: none; }
 #exitClean { display: none; position: fixed; top: 8px; right: 8px; z-index: 2; }
 body.clean #exitClean { display: block; }
-#cam { position: fixed; right: 8px; bottom: 8px; width: 160px; opacity: .2; pointer-events: none; }
+#cam { position: fixed; right: 8px; bottom: 8px; width: 160px; opacity: .2; pointer-events: none; z-index: 2; }
 body.clean #cam { display: none; }
 #perf { position: fixed; left: 8px; bottom: 8px; z-index: 2; color: #0f0; font: 12px monospace; background: rgba(0,0,0,.45); padding: 4px 6px; border-radius: 4px; white-space: pre; }
 body.clean #perf { display: none; }
@@ -15,3 +16,4 @@ body.clean #perf { display: none; }
 #calibPose svg { width: 100%; height: 150px; display: block; }
 #calibText { font-size: 13px; line-height: 1.3; }
 body.clean #calibGuide { display: none; }
+body.output-mode #ui, body.output-mode #perf, body.output-mode #calibGuide, body.output-mode #cam, body.output-mode #exitClean { display: none !important; }

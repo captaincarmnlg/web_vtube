@@ -21,6 +21,13 @@ const calibGuide = document.getElementById('calibGuide');
 const calibTitle = document.getElementById('calibTitle');
 const calibPose = document.getElementById('calibPose');
 const calibText = document.getElementById('calibText');
+const bgLayer = document.getElementById('bgLayer');
+const bgType = document.getElementById('bgType');
+const bgColor = document.getElementById('bgColor');
+const bgImage = document.getElementById('bgImage');
+
+const isOutputMode = new URLSearchParams(location.search).has('output');
+if (isOutputMode) document.body.classList.add('output-mode', 'clean');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !!settings.antialias, alpha: true, powerPreference: settings.powerPreference || 'default' });
 renderer.setPixelRatio(settings.pixelRatio > 0 ? settings.pixelRatio : devicePixelRatio);
@@ -41,10 +48,37 @@ let vrm, clock = new THREE.Clock(), faceLandmarker, handLandmarker, poseLandmark
 let calib = { active: false, stage: 0, samples: [], baseline: null, headLock: null, armLock: null };
 let perf = { frames: 0, last: performance.now(), fps: 0, ms: 0 };
 
+function applyBackground() {
+  const t = settings.outputBgType || 'green';
+  const c = t === 'green' ? '#00b140' : (settings.outputBgColor || '#00b140');
+  document.body.style.background = t === 'transparent' ? 'transparent' : c;
+  if (bgLayer) {
+    if (t === 'image' && settings.outputBgImage) {
+      bgLayer.style.backgroundImage = `url("${settings.outputBgImage}")`;
+      bgLayer.style.backgroundColor = c;
+    } else {
+      bgLayer.style.backgroundImage = 'none';
+      bgLayer.style.backgroundColor = t === 'transparent' ? 'transparent' : c;
+    }
+  }
+}
+
 if (gpuMode) gpuMode.value = settings.powerPreference || 'default';
 if (aaToggle) aaToggle.checked = !!settings.antialias;
+if (bgType) bgType.value = settings.outputBgType || 'green';
+if (bgColor) bgColor.value = settings.outputBgColor || '#00b140';
+applyBackground();
+
 gpuMode?.addEventListener('change', () => { settings.powerPreference = gpuMode.value; saveSettings(settings); location.reload(); });
 aaToggle?.addEventListener('change', () => { settings.antialias = aaToggle.checked; saveSettings(settings); location.reload(); });
+bgType?.addEventListener('change', () => { settings.outputBgType = bgType.value; saveSettings(settings); applyBackground(); });
+bgColor?.addEventListener('input', () => { settings.outputBgColor = bgColor.value; if (settings.outputBgType === 'green') { settings.outputBgType = 'color'; if (bgType) bgType.value = 'color'; } saveSettings(settings); applyBackground(); });
+bgImage?.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { settings.outputBgImage = String(r.result || ''); settings.outputBgType = 'image'; if (bgType) bgType.value = 'image'; saveSettings(settings); applyBackground(); };
+  r.readAsDataURL(f);
+});
 
 let vcamWin = null;
 vcamBtn?.addEventListener('click', () => {
